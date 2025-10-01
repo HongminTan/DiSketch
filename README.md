@@ -9,6 +9,7 @@ DiSketch 是一个基于 Sketch 算法的分布式部署并聚合统计的网络
 ```
 DiSketch/
 ├── SketchLib/            # Sketch 算法库 (Git Submodule)
+├── PcapPlusPlus-25.05/   # PcapPlusPlus 库 (用于解析 pcap 文件)
 ├── .gitignore
 ├── .gitmodules           # Git submodule 配置文件
 └── README.md
