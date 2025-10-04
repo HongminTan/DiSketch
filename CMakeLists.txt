@@ -10,6 +10,7 @@ add_subdirectory(SketchLib)
 
 add_library(disketch STATIC
     src/PacketParser.cpp
+    src/HeavyHitterDetector.cpp
 )
 
 target_include_directories(disketch
@@ -30,4 +31,7 @@ option(DISKETCH_BUILD_EXAMPLES "Build DiSketch examples" ON)
 if(DISKETCH_BUILD_EXAMPLES)
     add_executable(parse_pcap examples/parse_pcap.cpp)
     target_link_libraries(parse_pcap PRIVATE disketch)
+
+    add_executable(baseline examples/baseline.cpp)
+    target_link_libraries(baseline PRIVATE disketch SketchLib)
 endif()
