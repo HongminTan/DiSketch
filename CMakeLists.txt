@@ -11,6 +11,9 @@ add_subdirectory(SketchLib)
 add_library(disketch STATIC
     src/PacketParser.cpp
     src/HeavyHitterDetector.cpp
+    src/disketch/FragmentSimulator.cpp
+    src/disketch/SimpleTopology.cpp
+    src/disketch/DisaggregationSimulation.cpp
 )
 
 target_include_directories(disketch
@@ -34,4 +37,7 @@ if(DISKETCH_BUILD_EXAMPLES)
 
     add_executable(baseline examples/baseline.cpp)
     target_link_libraries(baseline PRIVATE disketch SketchLib)
+
+    add_executable(disketch_simulation examples/disketch_simulation.cpp)
+    target_link_libraries(disketch_simulation PRIVATE disketch SketchLib)
 endif()
