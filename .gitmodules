@@ -1,3 +1,3 @@
 [submodule "SketchLib"]
 	path = SketchLib
-	url = git@github.com:HongminTan/SketchLib.git
+	url = https://github.com/HongminTan/SketchLib.git
