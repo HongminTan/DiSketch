@@ -1,9 +1,9 @@
 #ifndef DISKETCH_TOPOLOGY_H
 #define DISKETCH_TOPOLOGY_H
 
+#include "Fragment.h"
 #include "HashFunction.h"
 #include "TwoTuple.h"
-#include "disketch/Fragment.h"
 
 // 路径配置
 struct PathSetting {

@@ -1,109 +1,188 @@
 # DiSketch
 
-## 项目简介
+DiSketch 是一个基于 Sketch 算法的分布式网络测量框架,实现了论文 [DiSketch: Sketch Disaggregation Across Time and Space](https://arxiv.org/pdf/2503.13515v1) 中的时空分离架构。
 
-DiSketch 是一个基于 Sketch 算法的分布式部署并聚合统计的网络测量框架。
+## 核心设计思想
+
+### 时空分离架构
+
+DiSketch 将网络测量中的 Sketch 在**时间维度**和**空间维度**上进行分离:
+
+- **时间分离 (Temporal Disaggregation)**: 将一个 epoch 拆分为多个 subepoch,每个 subepoch 独立采样和统计
+- **空间分离 (Spatial Disaggregation)**: 将完整的 Sketch 拆分到网络中的多个节点(Fragment)上分布式部署
+
+这种设计能够在有限的内存资源下,通过时空聚合实现接近集中式 Sketch 的精度。
+
+### 代码实现架构
+
+DiSketch 的代码清晰地体现了时空分离的设计:
+
+1. **Fragment 类** - 负责**时间维度**的处理
+   - 管理单个网络节点的 Sketch 实例
+   - 将 epoch 拆分为多个 subepoch
+   - 实现自适应的 subepoch 调整(基于 ρ 值)
+   - 提供 `temporal_aggregation()` 静态方法,从多个 subepoch 中恢复流量估计
+
+2. **DiSketch 类** - 负责**空间维度**的处理
+   - 协调多个 Fragment 的运行
+   - 实现 `spatial_aggregation()` 方法,沿着路径聚合多个 Fragment 的结果
+   - 根据 Sketch 类型选择不同的聚合策略:
+     - CountMin: 取最小值
+     - CountSketch: 取中位数
+     - UnivMon: 取平均值
+
+3. **查询流程** - 体现时空分离
+   ```
+   对于每个流 f:
+     1. 空间聚合: 遍历路径上的每个 Fragment
+        2. 时间聚合: 在单个 Fragment 中从 subepochs 恢复估计值
+     3. 合并所有 Fragment 的结果得到最终估计
+   ```
 
 ## 项目结构
 
 ```
 DiSketch/
-├── CMakeLists.txt        # 顶层 CMake 工程配置
-├── examples/             # 示例程序
-│   └── parse_pcap.cpp
-├── include/              # 头文件
-│   └── PacketParser.h
-├── src/                  # 源文件
-│   └── PacketParser.cpp
-├── PcapPlusPlus-25.05/   # PcapPlusPlus 库（用于解析 pacp 文件）
-├── SketchLib/            # Sketch 算法库（Git Submodule）
-├── .gitignore
-├── .gitmodules           # Git submodule 配置文件
-└── README.md
+├── CMakeLists.txt              # CMake 构建配置
+├── README.md
+├── configs/
+│   └── disketch.ini            # 配置文件示例
+├── datasets/                   # PCAP 数据集
+│   ├── caida_600w.pcap
+│   └── ...
+├── examples/                   # 示例程序
+│   ├── disketch_simulation.cpp # DiSketch 完整仿真
+│   ├── baseline.cpp            # 基线对比
+│   └── parse_pcap.cpp          # PCAP 解析示例
+├── include/                    # 头文件
+│   ├── DiSketch.h              # DiSketch 主类(空间聚合)
+│   ├── Fragment.h              # Fragment 类(时间聚合)
+│   ├── Topology.h              # 拓扑配置
+│   ├── Epoch.h                 # Epoch 相关数据结构
+│   ├── ConfigParser.h          # 配置解析器
+│   ├── PacketParser.h          # PCAP 解析器
+│   └── HeavyHitterDetector.h   # 重流检测指标
+├── src/                        # 源文件
+│   ├── DiSketch.cpp
+│   ├── Fragment.cpp
+│   ├── Topology.cpp
+│   ├── ConfigParser.cpp
+│   ├── PacketParser.cpp
+│   └── HeavyHitterDetector.cpp
+├── PcapPlusPlus-25.05/         # PCAP 解析库(已包含)
+├── SketchLib/                  # Sketch 算法库(Git Submodule)
+└── simpleini/                  # INI 解析库(已包含)
 ```
 
-## 依赖与构建
+## 构建与运行
 
 ### 系统要求
 
 - CMake ≥ 3.16
 - Ninja 构建系统
-- 支持 C++14 的编译器
-
-### 依赖说明
-
-本项目**无需单独安装** PcapPlusPlus 或 SketchLib。所有依赖都作为子项目在顶层 CMake 中一同构建：
-
-- **PcapPlusPlus-25.05**：已在项目目录下配置好，只编译 `Common++` 和 `Packet++` 模块，足够用于解析 pcap 文件。
-- **SketchLib**：作为 Git Submodule 管理，CMake 会自动将其编译为静态库。
+- C++14 编译器
+- Git (用于 submodule)
 
 ### 构建步骤
 
-使用 CMake + Ninja 进行构建：
-
 ```bash
-# 在项目根目录下创建 build 目录
-mkdir build
-cd build
-
-# 配置 CMake，使用 Ninja 生成器
-cmake -G Ninja ..
-
-# 编译项目
-ninja
-```
-
-示例程序会调用 `PacketParser`，将 pcap 文件转换为按时间戳升序排序的数据包向量。每个元素包含：
-- 源 IP 地址（`src_ip`）
-- 目的 IP 地址（`dst_ip`）
-- 时间戳（`timestamp: std::chrono::nanoseconds`）
-
-解析后的数据可直接用于后续的 Sketch 算法计算。
-
-### 关于 SketchLib Submodule
-
-**SketchLib** 是作为 Git Submodule 引入的外部依赖库，来源于 [HongminTan/SketchLib](https://github.com/HongminTan/SketchLib)。
-
-## Git Submodule 操作指南
-
-### 首次克隆项目（包含 submodule）
-
-如果首次克隆本项目，需要同时初始化并更新 submodule：
-
-```bash
-# 方式 1：克隆时自动初始化 submodule
-git clone --recursive git@github.com:HongminTan/DiSketch.git
-
-# 方式 2：先克隆项目，再初始化 submodule
-git clone git@github.com:HongminTan/DiSketch.git
+# 克隆项目(包含 submodule)
+git clone --recursive https://github.com/HongminTan/DiSketch.git
 cd DiSketch
-git submodule init
-git submodule update
+
+# 创建构建目录
+mkdir build && cd build
+
+# 配置并编译
+cmake -G Ninja ..
+ninja
+
+# 运行仿真
+./disketch_simulation ../configs/disketch.ini
 ```
 
-### 更新 Submodule 到最新版本
+## 配置文件说明
 
-当 SketchLib 仓库有更新时，可以使用以下命令更新 submodule：
+配置文件使用 INI 格式,通过 SimpleIni 库解析。完整示例见 `configs/disketch.ini`。
+
+### [global] - 全局配置
+
+| 参数 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| `pcap` | 字符串 | PCAP 数据集路径 | `../datasets/caida_600w.pcap` |
+| `sketch_kind` | 枚举 | Sketch 类型: `CountMin`, `CountSketch`, `UnivMon` | `CountSketch` |
+| `epoch_ns` | 整数 | Epoch 时长(纳秒) | `100000000` (100ms) |
+| `max_epochs` | 整数 | 最大处理 epoch 数,0=全部 | `6` |
+| `full_sketch_depth` | 整数 | Full Sketch 基线的深度(层数) | `8` |
+| `heavy_ratio` | 浮点数 | 重流阈值(占总包数比例) | `0.01` (1%) |
+
+### [fragment:名称] - Fragment 配置
+
+每个 `[fragment:名称]` section 定义一个网络节点的 Sketch 配置:
+
+| 参数 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| `name` | 字符串 | Fragment 标识符 | `edge_a` |
+| `kind` | 枚举 | Sketch 类型(可覆盖全局) | `CountSketch` |
+| `memory` | 整数 | 分配内存(字节) | `131072` (128KB) |
+| `depth` | 整数 | Sketch 深度(层数/行数) | `4` |
+| `initial_subepoch` | 整数 | 初始 subepoch 数量 | `2` |
+| `max_subepoch` | 整数 | 最大 subepoch 数量 | `16` |
+| `rho_target` | 浮点数 | 目标噪声上界 ρ | `120.0` |
+| `boost_single_hop` | 布尔 | 单跳流双采样增强 | `1` (true) |
+
+**参数说明:**
+
+- **memory**: 控制 Sketch 宽度。计算公式:
+  - CountMin: `width = memory / (depth × 4)`
+  - CountSketch: `width = memory / (depth × 4)`
+
+- **initial_subepoch**: 第一个 epoch 的 subepoch 数量
+
+- **max_subepoch**: Subepoch 数量上限,防止过度分割
+
+- **rho_target**: Fragment 监控实际 ρ 值并自适应调整:
+  - 若 `ρ > 2 × rho_target`: 下个 epoch 的 subepoch 数量翻倍
+  - 若 `ρ < rho_target / 2`: 下个 epoch 的 subepoch 数量减半
+
+- **boost_single_hop**: 对只经过单个 Fragment 的流,在两个 subepoch 中采样以提高精度
+
+### [path:名称] - 路径配置
+
+每个 `[path:名称]` section 定义一条数据转发路径:
+
+| 参数 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| `name` | 字符串 | 路径标识符 | `edge-core-edge` |
+| `nodes` | 字符串 | Fragment 名称列表(逗号分隔) | `edge_a,core,edge_b` |
+
+**注意**: `nodes` 中引用的所有 Fragment 必须在前面的 `[fragment:*]` section 中定义。
+
+## 输出示例
+
+运行 `disketch_simulation` 会输出:
+
+1. **配置信息**: Full Sketch 和各 Fragment 的详细参数
+2. **每个 Epoch 的统计**:
+   - 平均 ρ 值
+   - 总包数、总流数
+   - 各 Fragment 的 subepoch 数量
+3. **重流检测指标对比**:
+   - Precision, Recall, F1, Accuracy
+   - TP, FP, FN, TN 混淆矩阵
+
+## Git Submodule 管理
+
+SketchLib 作为 Git Submodule 引入,提供 CountMin, CountSketch, UnivMon 等 Sketch 算法实现。
 
 ```bash
-# 进入 submodule 目录
-cd SketchLib
+# 首次克隆(包含 submodule)
+git clone --recursive https://github.com/HongminTan/DiSketch.git
 
-# 拉取最新代码
-git pull origin main
+# 已克隆但未初始化 submodule
+git submodule update --init --recursive
 
-# 返回主项目目录
-cd ..
-
-# 提交 submodule 的更新
-git add SketchLib
-git commit -m "Update SketchLib Submodule"
-git push
-```
-
-或者使用一条命令更新所有 submodule：
-
-```bash
+# 更新 submodule 到最新版本
 git submodule update --remote --merge
 ```
 
@@ -124,6 +203,19 @@ git checkout main
 # 修改完成后，提交更改
 git add .
 git commit -m "Commit Message"
+```
+
+如果未在正确分支上并提交了commit，可以使用以下命令将更改应用到正确的分支：
+
+```bash
+# 找到提交的 hash
+git reflog
+
+# 切换到正确的分支
+git checkout main
+
+# cherry-pick 提交
+git cherry-pick <commit_hash>
 ```
 
 #### 步骤 2：推送到 SketchLib 仓库
