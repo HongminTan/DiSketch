@@ -7,6 +7,7 @@ Fragment::Fragment(int index,
       setting_(setting),
       epoch_duration_ns_(epoch_duration_ns),
       subepoch_count_(std::max(kMinSubepoch, setting.initial_subepoch)),
+      current_rho_(0.0),
       hash_func_(std::make_unique<DefaultHashFunction>()) {
     sketch_ = create_sketch();
 }
@@ -47,10 +48,13 @@ void Fragment::begin_epoch(uint64_t epoch_id, uint64_t epoch_start_ns) {
     epoch_start_ns_ = epoch_start_ns;
     current_subepoch_ = 0;
     packet_counter_ = 0;
+    current_rho_ = 0.0;
     emitted_records_.clear();
     // 每个 seed 都由 fragment_index 和 epoch_id 唯一确定
     hash_seed_ = (static_cast<uint64_t>(index_) << 32) | epoch_id;
     sketch_ = create_sketch();
+    subepoch_duration_ =
+        std::max<uint64_t>(1, epoch_duration_ns_ / subepoch_count_);
 }
 
 void Fragment::process_packet(const TwoTuple& flow,
@@ -60,10 +64,8 @@ void Fragment::process_packet(const TwoTuple& flow,
         return;
     }
     uint64_t delta = packet_time_ns - epoch_start_ns_;
-    uint64_t duration =
-        std::max<uint64_t>(1, epoch_duration_ns_ / subepoch_count_);
     uint32_t subepoch_index = static_cast<uint32_t>(
-        std::min<uint64_t>(delta / duration, subepoch_count_ - 1));
+        std::min<uint64_t>(delta / subepoch_duration_, subepoch_count_ - 1));
     if (subepoch_index > current_subepoch_) {
         flush_until(subepoch_index);
     }
@@ -71,7 +73,10 @@ void Fragment::process_packet(const TwoTuple& flow,
                       single_hop, setting_.boost_single_hop)) {
         return;
     }
-    sketch_->update(flow, 1);
+
+    // 更新 sketch 并增量更新 current_rho_
+    update_sketch_and_rho(flow);
+
     packet_counter_ += 1;
 }
 
@@ -109,11 +114,12 @@ void Fragment::flush_current() {
     record.kind = setting_.kind;
     record.hash_seed = hash_seed_;
     record.packet_count = packet_counter_;
-    record.rho_estimate = compute_rho();
+    record.rho_estimate = current_rho_;
     record.snapshot = clone_sketch();
 
     emitted_records_.push_back(record);
     sketch_->clear();
+    current_rho_ = 0.0;
 }
 
 void Fragment::flush_until(uint32_t target_subepoch) {
@@ -168,47 +174,47 @@ uint64_t Fragment::temporal_aggregation(const TwoTuple& flow,
     return 0;
 }
 
-double Fragment::compute_rho() {
-    if (packet_counter_ == 0) {
-        return 0.0;
-    }
+void Fragment::update_sketch_and_rho(const TwoTuple& flow) {
     switch (setting_.kind) {
         case SketchKind::CountMin: {
-            // CountMin：ρ̂ = Σc_i / w
+            // CountMin: ρ̂ = Σc_i / w
+            // 查询更新前后的值，计算差值
+            uint64_t old_ = sketch_->query(flow);
+            sketch_->update(flow, 1);
+            uint64_t new_ = sketch_->query(flow);
+
             auto* cm = static_cast<const CountMin*>(sketch_.get());
             const auto& counters = cm->get_raw_data();
-            if (counters.empty() || counters[0].empty()) {
-                return 0.0;
+            if (!counters.empty() && !counters[0].empty()) {
+                uint64_t width = counters[0].size();
+                // ρ_new = ρ_old + (new_ - old_) / width
+                current_rho_ += static_cast<double>(new_ - old_) /
+                                static_cast<double>(width);
             }
-            uint64_t width = counters[0].size();
-            double sum = 0.0;
-            for (const auto& row : counters) {
-                for (uint32_t c : row) {
-                    sum += static_cast<double>(c);
-                }
-            }
-            return sum / static_cast<double>(width);
+            break;
         }
         case SketchKind::CountSketch: {
-            // CountSketch：ρ̂ = Σc_i² / w
+            // CountSketch: ρ̂ = sqrt(Σc_i² / w)
+            // 查询更新前后的值，计算平方和的变化
+            uint64_t old_ = sketch_->query(flow);
+            sketch_->update(flow, 1);
+            uint64_t new_ = sketch_->query(flow);
+
             auto* cs = static_cast<const CountSketch*>(sketch_.get());
             const auto& counters = cs->get_raw_data();
-            if (counters.empty() || counters[0].empty()) {
-                return 0.0;
+            if (!counters.empty() && !counters[0].empty()) {
+                uint64_t width = counters[0].size();
+                // ρ_new = sqrt( ρ_old² + (new_² - old_²) / width )
+                current_rho_ = std::sqrt(current_rho_ * current_rho_ +
+                                         (new_ * new_ - old_ * old_) /
+                                             static_cast<double>(width));
             }
-            uint64_t width = counters[0].size();
-            double sum_square = 0.0;
-            for (const auto& row : counters) {
-                for (int c : row) {
-                    double val = static_cast<double>(c);
-                    sum_square += val * val;
-                }
-            }
-            return sum_square / static_cast<double>(width);
+            break;
         }
         default:
-            // UnivMon 不需要计算 rho
-            return 0.0;
+            // UnivMon 只更新，无需计算 ρ
+            sketch_->update(flow, 1);
+            break;
     }
 }
 

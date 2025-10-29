@@ -13,11 +13,11 @@ constexpr uint32_t kMinSubepoch = 1;
 
 // Fragment 配置参数
 struct FragmentSetting {
-    std::string name;    // fragment 名称
-    uint32_t depth = 4;  // CountMin/CountSketch 的行数 或 UnivMon 的层数
-    double rho_target = 1.0;  // 目标 ρ 阈值，用于动态扩展 subepoch 数量
+    std::string name;           // fragment 名称
+    uint32_t depth = 4;         // CountMin/CountSketch 的行数 或 UnivMon 的层数
+    double rho_target = 1.0;    // 目标 ρ 阈值，用于动态扩展 subepoch 数量
     uint64_t memory_bytes = 0;  // 分配给 fragment 的 Sketch 内存大小（字节）
-    uint32_t max_subepoch = 8;      // 允许自动扩展的 subepoch 上限
+    uint32_t max_subepoch = 8;  // 允许自动扩展的 subepoch 上限
     uint32_t initial_subepoch = 1;  // 初始的 subepoch 数量
     bool boost_single_hop = false;  // 单跳流是否在多个 subepoch 中采样
     SketchKind kind = SketchKind::CountSketch;  // fragment 使用的 Sketch 种类
@@ -69,15 +69,17 @@ class Fragment {
                                          bool boost_single_hop);
 
    private:
-    int index_;                      // fragment 下标
-    FragmentSetting setting_;        // fragment 配置
-    uint64_t epoch_duration_ns_;     // epoch 长度
-    uint64_t hash_seed_ = 0;         // 当前 epoch 使用的哈希种子
-    uint64_t epoch_id_ = 0;          // 当前 epoch 号
-    uint64_t epoch_start_ns_ = 0;    // 当前 epoch 起始时间
-    uint32_t subepoch_count_ = 1;    // 当前 epoch 的 subepoch 总数
-    uint32_t current_subepoch_ = 0;  // 已处理的Su b e po ch下标
-    uint64_t packet_counter_ = 0;    // 当前 subepoch 的包计数
+    int index_;                       // fragment 下标
+    FragmentSetting setting_;         // fragment 配置
+    uint64_t epoch_duration_ns_;      // epoch 长度
+    uint64_t hash_seed_ = 0;          // 当前 epoch 使用的哈希种子
+    uint64_t epoch_id_ = 0;           // 当前 epoch 号
+    uint64_t epoch_start_ns_ = 0;     // 当前 epoch 起始时间
+    uint32_t subepoch_count_ = 1;     // 当前 epoch 的 subepoch 总数
+    uint32_t current_subepoch_ = 0;   // 已处理的 subepoch 下标
+    uint64_t packet_counter_ = 0;     // 当前 subepoch 的包计数
+    uint64_t subepoch_duration_ = 0;  // subepoch 时长
+    double current_rho_ = 0.0;        // 当前 subepoch 的 ρ 值
     std::vector<SubepochRecord> emitted_records_;  // 已输出的 subepoch 记录
 
     std::unique_ptr<HashFunction> hash_func_;
@@ -90,8 +92,8 @@ class Fragment {
     // 将内部状态推进到指定子 epoch
     void flush_until(uint32_t target_subepoch);
 
-    // 根据 Sketch 的 counter 估计 ρ
-    double compute_rho();
+    // 更新 sketch 并增量更新 current_rho_
+    void update_sketch_and_rho(const TwoTuple& flow);
     // 根据 ρ 动态调整 subepoch 数
     void adjust_subepoch(double avg_rho);
 };
