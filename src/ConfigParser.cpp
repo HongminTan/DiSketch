@@ -28,6 +28,8 @@ bool ConfigParser::parse(const std::string& ini_path, DiSketchConfig& config) {
         ini.GetLongValue("global", "full_sketch_depth", 8);
     config.heavy_hitter_ratio =
         ini.GetDoubleValue("global", "heavy_ratio", 0.0001);
+    config.enable_progress_bar =
+        parse_bool(ini.GetValue("global", "progress_bar", "true"));
 
     // 解析所有 fragment 配置
     CSimpleIniA::TNamesDepend sections;

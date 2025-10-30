@@ -1,0 +1,10 @@
+# 运行时间: 1862.1秒
+# 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/sketch/univmon.ini
+# 返回码: 0
+
+=== STDOUT ===
+method,precision,recall,f1,accuracy,tp,fp,fn,tn
+FullSketch,0.899816,1.000000,0.947267,0.999501,76892,8561,0,17078230
+DiSketch,0.397873,0.895282,0.550914,0.993461,68840,104180,8052,16982611
+
+=== STDERR ===

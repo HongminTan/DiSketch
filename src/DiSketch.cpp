@@ -6,6 +6,8 @@ DiSketch::DiSketch(DiSketchConfig config)
 DiSketchReport DiSketch::run(const PacketParser::PacketVector& packets) {
     DiSketchReport report;
     if (packets.empty()) {
+        progress_bar_.reset();
+        progress_enabled_ = false;
         return report;
     }
 
@@ -19,6 +21,7 @@ DiSketchReport DiSketch::run(const PacketParser::PacketVector& packets) {
     if (config_.max_epochs > 0) {
         total_epochs = std::min<uint64_t>(total_epochs, config_.max_epochs);
     }
+    init_progress_bar(static_cast<size_t>(total_epochs));
 
     // 准备 fragments
     std::vector<Fragment> disketch_fragments;
@@ -37,6 +40,7 @@ DiSketchReport DiSketch::run(const PacketParser::PacketVector& packets) {
 
     // 逐 epoch 处理数据包
     size_t packet_index = 0;
+    size_t epochs_completed = 0;
     for (uint64_t epoch = 0; epoch < total_epochs; ++epoch) {
         uint64_t epoch_start = first_ts + epoch * epoch_duration;
         uint64_t epoch_end = epoch_start + epoch_duration;
@@ -167,9 +171,81 @@ DiSketchReport DiSketch::run(const PacketParser::PacketVector& packets) {
             }
         }
         report.epochs.push_back(std::move(summary));
+
+        epochs_completed += 1;
+        update_progress(epochs_completed);
     }
 
     return report;
+}
+
+void DiSketch::init_progress_bar(size_t total_epochs) {
+    total_epochs_ = total_epochs;
+    if (!config_.enable_progress_bar || total_epochs_ == 0) {
+        progress_bar_.reset();
+        progress_enabled_ = false;
+        return;
+    }
+
+    progress_enabled_ = true;
+    progress_bar_ = std::make_unique<indicators::ProgressBar>(
+        indicators::option::BarWidth{40}, indicators::option::Start{"["},
+        indicators::option::End{"]"}, indicators::option::Fill{"="},
+        indicators::option::Lead{">"}, indicators::option::Remainder{" "},
+        indicators::option::ShowElapsedTime{true},
+        indicators::option::ShowRemainingTime{true},
+        indicators::option::ShowPercentage{true},
+        indicators::option::ForegroundColor{indicators::Color::cyan},
+        indicators::option::MaxProgress{total_epochs_});
+    progress_bar_->set_option(indicators::option::PrefixText{"DiSketch "});
+    progress_bar_->set_option(indicators::option::PostfixText{
+        "0/" + std::to_string(total_epochs_) + " ETA --:--:--"});
+
+    progress_start_ = std::chrono::steady_clock::now();
+}
+
+void DiSketch::update_progress(size_t completed_epochs) {
+    if (!progress_enabled_ || !progress_bar_) {
+        return;
+    }
+
+    if (completed_epochs > total_epochs_) {
+        completed_epochs = total_epochs_;
+    }
+
+    auto now = std::chrono::steady_clock::now();
+    double elapsed_sec =
+        std::chrono::duration<double>(now - progress_start_).count();
+
+    auto format_time = [](double seconds) {
+        if (!std::isfinite(seconds) || seconds < 0.0) {
+            return std::string("--:--:--");
+        }
+        auto total = static_cast<long long>(std::llround(seconds));
+        int hours = static_cast<int>(total / 3600);
+        int minutes = static_cast<int>((total % 3600) / 60);
+        int secs = static_cast<int>(total % 60);
+        std::ostringstream oss;
+        oss << std::setfill('0') << std::setw(2) << hours << ':' << std::setw(2)
+            << minutes << ':' << std::setw(2) << secs;
+        return oss.str();
+    };
+
+    std::ostringstream postfix;
+    postfix << completed_epochs << '/' << total_epochs_;
+
+    if (completed_epochs > 0 && completed_epochs < total_epochs_) {
+        double eta_sec = static_cast<double>(total_epochs_ - completed_epochs) *
+                         (elapsed_sec / completed_epochs);
+        postfix << " ETA " << format_time(eta_sec);
+    } else if (completed_epochs == total_epochs_) {
+        postfix << " elapsed " << format_time(elapsed_sec);
+    } else {
+        postfix << " ETA --:--:--";
+    }
+
+    progress_bar_->set_option(indicators::option::PostfixText{postfix.str()});
+    progress_bar_->set_progress(completed_epochs);
 }
 
 std::unique_ptr<Sketch> DiSketch::create_full_sketch(

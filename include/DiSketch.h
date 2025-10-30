@@ -2,20 +2,20 @@
 #define DISKETCH_H
 
 #include "Epoch.h"
-#include "Fragment.h"
-#include "Ideal.h"
 #include "PacketParser.h"
 #include "Topology.h"
+#include "indicators.hpp"
 
 // DiSketch 整体配置
 struct DiSketchConfig {
-    std::string pcap_path;    // 输入数据集路径（pcap 文件）
-    TopologyConfig topology;  // 拓扑与 fragment 配置
-    uint32_t max_epochs = 0;  // 最大 epoch 数，0 表示直到数据结束
-    uint32_t full_sketch_depth = 8;  // Full Sketch 使用的 Sketch 深度或层数
+    std::string pcap_path;               // 输入数据集路径（pcap 文件）
+    TopologyConfig topology;             // 拓扑与 fragment 配置
+    uint32_t max_epochs = 0;             // 最大 epoch 数，0 表示直到数据结束
+    uint32_t full_sketch_depth = 8;      // Full Sketch 使用的 Sketch 深度或层数
     double heavy_hitter_ratio = 0.0001;  // 重点流筛选占比（按包数）
     uint64_t epoch_duration_ns = 1000000000ULL;  // 每个 epoch 大小（纳秒）
     SketchKind sketch_kind = SketchKind::CountSketch;  // 拆分的 Sketch 类型
+    bool enable_progress_bar = true;                   // 是否显示进度条
 };
 
 // DiSketch 运行报告
@@ -34,6 +34,16 @@ class DiSketch {
    private:
     DiSketchConfig config_;  // 全局配置
     Topology topology_;      // 提供流到路径的映射
+
+    std::unique_ptr<indicators::ProgressBar> progress_bar_;
+    bool progress_enabled_ = false;
+    size_t total_epochs_ = 0;
+    std::chrono::steady_clock::time_point progress_start_;
+
+    // 初始化进度条
+    void init_progress_bar(size_t total_epochs);
+    // 更新进度条
+    void update_progress(size_t completed_epochs);
 
     // 创建一个未拆分的 Sketch
     std::unique_ptr<Sketch> create_full_sketch(uint64_t memory_bytes) const;

@@ -1,0 +1,10 @@
+# 运行时间: 971.0秒
+# 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/dataset/mawi_countmin.ini
+# 返回码: 0
+
+=== STDOUT ===
+method,precision,recall,f1,accuracy,tp,fp,fn,tn
+FullSketch,1.000000,1.000000,1.000000,1.000000,76892,0,0,17086791
+DiSketch,0.971827,0.999948,0.985687,0.999870,76888,2229,4,17084562
+
+=== STDERR ===

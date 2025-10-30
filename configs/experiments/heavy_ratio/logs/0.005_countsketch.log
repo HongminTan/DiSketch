@@ -1,0 +1,10 @@
+# 运行时间: 1137.6秒
+# 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/heavy_ratio/0.005_countsketch.ini
+# 返回码: 0
+
+=== STDOUT ===
+method,precision,recall,f1,accuracy,tp,fp,fn,tn
+FullSketch,0.995901,1.000000,0.997946,0.999963,154287,635,0,17008761
+DiSketch,0.966547,0.999987,0.982982,0.999689,154285,5340,2,17004056
+
+=== STDERR ===

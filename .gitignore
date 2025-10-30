@@ -2,3 +2,8 @@
 build/
 datasets/
 venv/
+.venv/
+.python-version
+.cache/*
+compile_commands.json
+**/__pycache__/

@@ -1,0 +1,10 @@
+# 运行时间: 994.7秒
+# 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/epoch/500ms_countsketch.ini
+# 返回码: 0
+
+=== STDOUT ===
+method,precision,recall,f1,accuracy,tp,fp,fn,tn
+FullSketch,0.978648,1.000000,0.989209,0.999978,15400,336,0,15410716
+DiSketch,0.890103,0.999805,0.941770,0.999877,15397,1901,3,15409151
+
+=== STDERR ===
