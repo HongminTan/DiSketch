@@ -197,7 +197,7 @@ PacketParser::PacketVector PacketParser::parse_pcap(
 
     pcpp::RawPacket raw_packet;
     while (reader.get_next_packet(raw_packet)) {
-        pcpp::Packet parsed_packet(&raw_packet);
+        pcpp::Packet parsed_packet(&raw_packet, pcpp::OsiModelNetworkLayer);
 
         auto* ipv4_layer = parsed_packet.getLayerOfType<pcpp::IPv4Layer>();
         if (!ipv4_layer) {
