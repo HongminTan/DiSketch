@@ -1,10 +1,10 @@
-# 运行时间: 1872.2秒
+# 运行时间: 2554.8秒
 # 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/heavy_ratio/0.005_univmon.ini
 # 返回码: 0
 
 === STDOUT ===
 method,precision,recall,f1,accuracy,tp,fp,fn,tn
-FullSketch,0.859490,1.000000,0.924436,0.998530,154287,25223,0,16984173
-DiSketch,0.207940,0.878279,0.336266,0.968833,135507,516157,18780,16493239
+FullSketch,0.857269,1.000000,0.923150,0.998503,154287,25688,0,16983708
+DiSketch,0.209327,0.885045,0.338576,0.968916,136551,515781,17736,16493615
 
 === STDERR ===

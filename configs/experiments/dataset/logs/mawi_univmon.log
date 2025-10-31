@@ -1,10 +1,10 @@
-# 运行时间: 1894.8秒
+# 运行时间: 2601.4秒
 # 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/dataset/mawi_univmon.ini
 # 返回码: 0
 
 === STDOUT ===
 method,precision,recall,f1,accuracy,tp,fp,fn,tn
-FullSketch,0.901652,1.000000,0.948283,0.999511,76892,8387,0,17078404
-DiSketch,0.398668,0.894996,0.551621,0.993482,68818,103802,8074,16982989
+FullSketch,0.896721,1.000000,0.945548,0.999484,76892,8856,0,17077935
+DiSketch,0.401143,0.901680,0.555260,0.993529,69332,103504,7560,16983287
 
 === STDERR ===

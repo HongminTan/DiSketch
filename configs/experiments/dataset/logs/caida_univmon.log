@@ -1,10 +1,10 @@
-# 运行时间: 1015.4秒
+# 运行时间: 1290.7秒
 # 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/dataset/caida_univmon.ini
 # 返回码: 0
 
 === STDOUT ===
 method,precision,recall,f1,accuracy,tp,fp,fn,tn
-FullSketch,0.841444,1.000000,0.913896,0.999984,536,101,0,6130421
-DiSketch,0.147976,0.770522,0.248272,0.999592,413,2378,123,6128144
+FullSketch,0.803598,1.000000,0.891106,0.999979,536,131,0,6130391
+DiSketch,0.144071,0.727612,0.240518,0.999598,390,2317,146,6128205
 
 === STDERR ===

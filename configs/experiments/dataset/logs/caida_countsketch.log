@@ -1,10 +1,10 @@
-# 运行时间: 693.8秒
+# 运行时间: 1056.1秒
 # 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/dataset/caida_countsketch.ini
 # 返回码: 0
 
 === STDOUT ===
 method,precision,recall,f1,accuracy,tp,fp,fn,tn
-FullSketch,0.981685,1.000000,0.990758,0.999998,536,10,0,6130512
-DiSketch,0.828439,1.000000,0.906171,0.999982,536,111,0,6130411
+FullSketch,0.965766,1.000000,0.982585,0.999997,536,19,0,6130503
+DiSketch,0.825886,1.000000,0.904641,0.999982,536,113,0,6130409
 
 === STDERR ===

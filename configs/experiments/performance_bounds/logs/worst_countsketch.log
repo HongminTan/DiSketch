@@ -1,10 +1,10 @@
-# 运行时间: 1309.0秒
+# 运行时间: 1823.0秒
 # 命令: /root/workspace/DiSketch/build/disketch_simulator --config /root/workspace/DiSketch/configs/experiments/performance_bounds/worst_countsketch.ini
 # 返回码: 0
 
 === STDOUT ===
 method,precision,recall,f1,accuracy,tp,fp,fn,tn
-FullSketch,0.999937,1.000000,0.999969,0.999999,159666,10,0,17644544
-DiSketch,0.995008,0.999981,0.997489,0.999955,159663,801,3,17643753
+FullSketch,0.999925,1.000000,0.999962,0.999999,159666,12,0,17644542
+DiSketch,0.994742,0.999987,0.997358,0.999952,159664,844,2,17643710
 
 === STDERR ===
